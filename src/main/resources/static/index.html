@@ -1,68 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Zia's day- AI schedule planner</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .app-container { width: 900px; background: #1e293b; padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 20px; }
-        h2 { margin: 0 0 10px 0; color: #38bdf8; text-align: center; }
-        .input-section { display: flex; flex-direction: column; gap: 10px; background: #0f172a; padding: 16px; border-radius: 8px; border: 1px solid #334155; }
-        textarea { width: 100%; height: 80px; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; resize: none; outline: none; font-family: inherit; }
-        button { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; align-self: flex-end; }
-        button:hover { background: #2563eb; }
-        .schedule-output { background: #0f172a; border: 1px solid #334155; padding: 16px; border-radius: 8px; min-height: 250px; overflow-x: auto; color: #cbd5e1; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #334155; padding: 10px 12px; text-align: left; }
-        th { background: #1e293b; color: #38bdf8; }
-        tr:nth-child(even) { background: #131c31; }
-        .loading { color: #facc15; font-style: italic; }
-    </style>
-    <!-- Include Marked.js to automatically convert Markdown to HTML tables -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zia's Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#241838;--plum:#3b2761;--lilac:#b9a6f0;--peach:#ffc7a8;--mint:#bfebd7;--paper:#faf7ff;--line:#e3dbf5}
+*{box-sizing:border-box;margin:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--paper);color:var(--ink);min-height:100vh}
+h1,h2,h3{font-family:'Fraunces',Georgia,serif}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--lilac);outline-offset:2px}
+.screen{position:fixed;inset:0;overflow:auto;display:none}
+.screen.on{display:block}
+
+/* Welcome */
+#welcome{background:var(--ink);color:var(--paper);display:none;transition:transform .8s cubic-bezier(.7,0,.2,1)}
+#welcome.on{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center;padding:24px}
+#welcome.leave{transform:translateY(-100%)}
+.dial{width:min(240px,60vw)}
+.ring{fill:none;stroke:var(--lilac);stroke-width:3;stroke-dasharray:565;stroke-dashoffset:565;animation:draw 1.6s ease forwards}
+.tick{stroke:var(--peach);stroke-width:3;stroke-linecap:round;opacity:0;animation:pop .4s ease forwards}
+.hand{stroke:var(--mint);stroke-width:5;stroke-linecap:round;transform-origin:100px 100px;animation:spin 12s linear infinite}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.welcome-title{font-size:clamp(2.4rem,8vw,4.6rem);font-weight:800;line-height:1.05}
+.welcome-title span{display:inline-block;opacity:0;transform:translateY(40px);animation:rise .7s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.tag{opacity:0;animation:pop .8s 2.2s forwards;color:var(--lilac);font-size:1.1rem}
+.go{opacity:0;animation:pop .8s 2.6s forwards;background:var(--peach);color:var(--ink);border:0;border-radius:999px;padding:14px 34px;font-weight:700;cursor:pointer;transition:transform .15s}
+.go:hover{transform:scale(1.05)}
+
+/* Auth */
+#auth{background:linear-gradient(160deg,var(--plum),var(--ink))}
+#auth.on{display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:var(--paper);border-radius:22px;padding:32px;width:min(400px,100%);box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.card h2{font-size:1.8rem;margin-bottom:6px}
+.sub{color:#6d5f8a;margin-bottom:20px}
+.tabs{display:flex;background:var(--line);border-radius:12px;padding:4px;margin-bottom:18px}
+.tabs button{flex:1;border:0;background:none;padding:9px;border-radius:9px;cursor:pointer;font-weight:500}
+.tabs .sel{background:#fff;font-weight:700;box-shadow:0 2px 6px rgba(36,24,56,.12)}
+label{display:block;font-size:.9rem;font-weight:500;margin:12px 0 5px}
+input,textarea{width:100%;border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:11px 13px}
+.primary{width:100%;margin-top:18px;background:var(--plum);color:#fff;border:0;border-radius:12px;padding:13px;font-weight:700;cursor:pointer}
+.link{display:block;margin:14px auto 0;background:none;border:0;color:var(--plum);text-decoration:underline;cursor:pointer}
+.err{color:#b3261e;min-height:1.3em;margin-top:10px;font-size:.92rem}
+
+/* Planner */
+#app{background:var(--paper)}
+.wrap{max-width:760px;margin:0 auto;padding:28px 18px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;gap:12px}
+.top h2{font-size:1.9rem}
+.top small{color:#6d5f8a}
+.ghost{background:none;border:1.5px solid var(--line);border-radius:999px;padding:8px 16px;cursor:pointer}
+.add{display:grid;grid-template-columns:1fr 150px 120px auto;gap:8px;background:#fff;border:1.5px solid var(--line);padding:12px;border-radius:16px}
+.add button{background:var(--plum);color:#fff;border:0;border-radius:11px;padding:0 20px;font-weight:700;cursor:pointer}
+@media(max-width:620px){.add{grid-template-columns:1fr 1fr}.add input:first-child{grid-column:1/-1}.add button{grid-column:1/-1;padding:11px}}
+.day{margin-top:26px}
+.day h3{font-size:1.15rem;margin-bottom:8px;color:var(--plum)}
+.task{display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:10px 12px;margin-bottom:8px;animation:rise .35s ease both}
+.task input[type=checkbox]{width:20px;height:20px;accent-color:var(--plum);flex:none}
+.task .t{flex:1;padding:4px;border-radius:6px;min-width:0;overflow-wrap:anywhere}
+.task .t:focus{background:var(--line);outline:none}
+.task.done .t{text-decoration:line-through;color:#9a90b2}
+.task input[type=time]{width:112px;padding:6px 8px;border-radius:8px}
+.x{background:none;border:0;color:#b3261e;cursor:pointer;font-size:1.2rem;padding:4px 8px}
+.empty{text-align:center;color:#6d5f8a;padding:40px 10px}
+.ai{margin-top:34px;background:var(--ink);color:var(--paper);border-radius:18px;padding:20px}
+.ai h3{margin-bottom:10px}
+.ai textarea{background:var(--plum);border-color:var(--plum);color:#fff;min-height:70px}
+.ai button{margin-top:10px;background:var(--mint);color:var(--ink);border:0;border-radius:11px;padding:10px 18px;font-weight:700;cursor:pointer}
+#aiOut{white-space:pre-wrap;margin-top:12px;line-height:1.5}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .3s}
+.toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-delay:0s!important;transition:none!important}}
+</style>
 </head>
 <body>
-    <div class="app-container">
-        <h2>AI Smart Schedule Planner</h2>
-        
-        <div class="input-section">
-            <label for="task-input"><strong>What tasks or goals do you want to plan today?</strong></label>
-            <textarea id="task-input" placeholder="e.g., Study for 5 hours, gym, lunch, and 1 hour gaming..."></textarea>
-            <button onclick="generateSchedule()">Generate Smart Schedule</button>
-        </div>
 
-        <div>
-            <h3>Your Optimized Schedule:</h3>
-            <div id="schedule-box" class="schedule-output">Your generated schedule will appear here...</div>
-        </div>
+<section id="welcome" class="screen on">
+  <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
+    <circle class="ring" cx="100" cy="100" r="90"/>
+    <g id="ticks"></g>
+    <line class="hand" x1="100" y1="100" x2="100" y2="38"/>
+    <circle cx="100" cy="100" r="6" fill="#ffc7a8"/>
+  </svg>
+  <h1 class="welcome-title" id="wt" aria-label="Welcome to Zia's Planner"></h1>
+  <p class="tag">Plan your days. Keep them.</p>
+  <button class="go" id="start">Get started</button>
+</section>
+
+<section id="auth" class="screen">
+  <div class="card">
+    <h2>Zia's Planner</h2>
+    <p class="sub">Sign in to see your saved schedule.</p>
+    <div class="tabs">
+      <button id="tabIn" class="sel" type="button">Sign in</button>
+      <button id="tabUp" type="button">Create account</button>
     </div>
+    <form id="authForm">
+      <label for="u">Username</label>
+      <input id="u" autocomplete="username" required>
+      <label for="p">Password</label>
+      <input id="p" type="password" autocomplete="current-password" minlength="6" required>
+      <p class="err" id="err" role="alert"></p>
+      <button class="primary" id="authBtn">Sign in</button>
+    </form>
+    <button class="link" id="guest" type="button">Just looking? Try the demo without an account</button>
+  </div>
+</section>
 
-    <script>
-        async function generateSchedule() {
-            const input = document.getElementById('task-input');
-            const scheduleBox = document.getElementById('schedule-box');
-            const tasks = input.value.trim();
-            
-            if (!tasks) return;
+<section id="app" class="screen">
+  <div class="wrap">
+    <div class="top">
+      <div><h2 id="hello"></h2><small id="mode"></small></div>
+      <button class="ghost" id="out">Log out</button>
+    </div>
+    <form class="add" id="addForm">
+      <input id="nt" placeholder="What needs doing?" aria-label="Task" required>
+      <input id="nd" type="date" aria-label="Day" required>
+      <input id="nm" type="time" aria-label="Time">
+      <button>Add</button>
+    </form>
+    <div id="list"></div>
+    <div class="ai">
+      <h3>Ask the AI to help</h3>
+      <textarea id="aiQ" placeholder="e.g. Arrange my tasks so the hardest ones come first"></textarea>
+      <button id="aiGo">Get a suggestion</button>
+      <div id="aiOut"></div>
+    </div>
+  </div>
+</section>
+<div class="toast" id="toast"></div>
 
-            const prompt = `Act as an expert time-management assistant. Take these tasks/goals and output your response containing a clean Markdown table with columns 'Timings' and 'What to Do'. Keep the explanations concise so the table looks neat:\n\n${tasks}`;
+<script>
+const $=s=>document.querySelector(s);
+const S={token:localStorage.getItem('zt'),user:localStorage.getItem('zu'),guest:false,tasks:[],signup:false};
 
-            scheduleBox.innerHTML = '<span class="loading">AI is organizing your schedule... Please wait...</span>';
+/* ---------- Welcome animation ---------- */
+const wt=$('#wt');
+"Welcome to Zia's Planner".split(' ').forEach((w,wi,arr)=>{
+  const word=document.createElement('span');word.style.marginRight='.25em';word.style.opacity=1;word.style.transform='none';word.style.animation='none';
+  [...w].forEach((c,i)=>{const s=document.createElement('span');s.textContent=c;s.style.animationDelay=(0.9+(wi*5+i)*0.045)+'s';word.appendChild(s)});
+  wt.appendChild(word);
+});
+for(let i=0;i<12;i++){
+  const a=i*30*Math.PI/180,l=document.createElementNS('http://www.w3.org/2000/svg','line');
+  l.setAttribute('class','tick');
+  l.setAttribute('x1',100+Math.sin(a)*78);l.setAttribute('y1',100-Math.cos(a)*78);
+  l.setAttribute('x2',100+Math.sin(a)*88);l.setAttribute('y2',100-Math.cos(a)*88);
+  l.style.animationDelay=(0.3+i*0.1)+'s';$('#ticks').appendChild(l);
+}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on','leave'));$('#'+id).classList.add('on')}
+$('#start').onclick=()=>{
+  $('#welcome').classList.add('leave');
+  setTimeout(()=>{S.token?enter():show('auth')},700);
+};
 
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
-                });
-                
-                const reply = await response.text();
-                // Render markdown table directly into gorgeous HTML table
-                scheduleBox.innerHTML = marked.parse(reply);
-            } catch (err) {
-                scheduleBox.innerHTML = '<span style="color: red;">Error: Could not connect to backend server. Make sure Spring Boot is running!</span>';
-            }
-        }
-    </script>
+/* ---------- API ---------- */
+async function api(path,method='GET',body){
+  const r=await fetch('/api'+path,{method,headers:{'Content-Type':'application/json',...(S.token?{Authorization:'Bearer '+S.token}:{})},body:body?JSON.stringify(body):undefined});
+  if(r.status===401&&S.token){logout();throw new Error('Session expired. Please sign in again.')}
+  const d=r.status===204?null:await r.json().catch(()=>null);
+  if(!r.ok)throw new Error((d&&d.error)||'Something went wrong. Please try again.');
+  return d;
+}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2800)}
+async function safe(fn){try{await fn()}catch(e){toast(e.message)}}
+
+/* ---------- Auth ---------- */
+function setTab(up){S.signup=up;$('#tabIn').classList.toggle('sel',!up);$('#tabUp').classList.toggle('sel',up);
+  $('#authBtn').textContent=up?'Create account':'Sign in';$('#err').textContent='';
+  $('#p').autocomplete=up?'new-password':'current-password'}
+$('#tabIn').onclick=()=>setTab(false);$('#tabUp').onclick=()=>setTab(true);
+$('#authForm').onsubmit=async e=>{
+  e.preventDefault();$('#err').textContent='';$('#authBtn').disabled=true;
+  try{
+    const d=await api(S.signup?'/auth/register':'/auth/login','POST',{username:$('#u').value,password:$('#p').value});
+    S.token=d.token;S.user=d.username;localStorage.setItem('zt',d.token);localStorage.setItem('zu',d.username);
+    S.guest=false;enter();
+  }catch(x){$('#err').textContent=x.message}
+  $('#authBtn').disabled=false;
+};
+$('#guest').onclick=()=>{S.guest=true;S.token=null;S.user='guest';enter()};
+function logout(){S.token=null;S.user=null;S.guest=false;localStorage.removeItem('zt');localStorage.removeItem('zu');show('auth')}
+$('#out').onclick=logout;
+
+/* ---------- Planner data ---------- */
+const G={load(){const s=localStorage.getItem('zg');if(s)return JSON.parse(s);
+  const d=new Date().toISOString().slice(0,10);
+  return[{id:1,title:'Revise for exam',day:d,time:'09:00',done:false},{id:2,title:'Gym session',day:d,time:'18:00',done:false},{id:3,title:'Call home',day:d,time:'20:30',done:true}]},
+  save(t){localStorage.setItem('zg',JSON.stringify(t))}};
+
+async function enter(){
+  show('app');
+  $('#hello').textContent=S.guest?'Demo planner':'Hi, '+S.user;
+  $('#mode').textContent=S.guest?'Changes stay in this browser only.':'Your tasks are saved to your account.';
+  $('#nd').value=new Date().toISOString().slice(0,10);
+  await safe(async()=>{S.tasks=S.guest?G.load():await api('/tasks');draw()});
+}
+$('#addForm').onsubmit=e=>{e.preventDefault();safe(async()=>{
+  const t={title:$('#nt').value.trim(),day:$('#nd').value,time:$('#nm').value||'',done:false};
+  if(S.guest){t.id=Date.now();S.tasks.push(t);G.save(S.tasks)}else S.tasks.push(await api('/tasks','POST',t));
+  $('#nt').value='';draw();
+})};
+const save=t=>safe(async()=>{S.guest?G.save(S.tasks):await api('/tasks/'+t.id,'PUT',t)});
+const remove=t=>safe(async()=>{S.tasks=S.tasks.filter(x=>x.id!==t.id);S.guest?G.save(S.tasks):await api('/tasks/'+t.id,'DELETE');draw()});
+
+function draw(){
+  const list=$('#list');list.innerHTML='';
+  if(!S.tasks.length){list.innerHTML='<p class="empty">Nothing planned yet. Add your first task above.</p>';return}
+  const days={};[...S.tasks].sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99'))).forEach(t=>(days[t.day]??=[]).push(t));
+  for(const d in days){
+    const sec=document.createElement('div');sec.className='day';
+    const h=document.createElement('h3');
+    h.textContent=new Date(d+'T00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+    sec.appendChild(h);
+    days[d].forEach(t=>{
+      const r=document.createElement('div');r.className='task'+(t.done?' done':'');
+      const c=document.createElement('input');c.type='checkbox';c.checked=t.done;c.setAttribute('aria-label','Done');
+      c.onchange=()=>{t.done=c.checked;r.classList.toggle('done',t.done);save(t)};
+      const n=document.createElement('div');n.className='t';n.contentEditable='true';n.textContent=t.title;n.setAttribute('role','textbox');
+      n.onblur=()=>{const v=n.textContent.trim();if(v&&v!==t.title){t.title=v;save(t)}else n.textContent=t.title};
+      n.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();n.blur()}};
+      const tm=document.createElement('input');tm.type='time';tm.value=t.time||'';tm.setAttribute('aria-label','Time');
+      tm.onchange=()=>{t.time=tm.value;save(t);draw()};
+      const x=document.createElement('button');x.className='x';x.textContent='✕';x.setAttribute('aria-label','Delete task');x.onclick=()=>remove(t);
+      r.append(c,n,tm,x);sec.appendChild(r);
+    });
+    list.appendChild(sec);
+  }
+}
+
+/* ---------- AI helper (calls your /api/chat endpoint) ---------- */
+$('#aiGo').onclick=async()=>{
+  const q=$('#aiQ').value.trim();if(!q)return;
+  const out=$('#aiOut');out.textContent='Thinking…';
+  const tasks=S.tasks.map(t=>({title:t.title,day:t.day,time:t.time,done:t.done}));
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:'My tasks: '+JSON.stringify(tasks)+'. '+q})});
+    out.textContent=await r.text();
+  }catch{out.textContent='The AI helper could not be reached. Your planner still works.'}
+};
+</script>
 </body>
 </html>
