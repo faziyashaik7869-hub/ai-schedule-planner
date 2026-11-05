@@ -21,7 +21,7 @@ public class GeminiService {
 
     public String askGemini(String prompt) {
         try {
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey;
 
             String jsonBody = """
                 {
