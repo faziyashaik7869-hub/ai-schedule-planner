@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <style>
 :root{--ink:#241838;--plum:#3b2761;--lilac:#b9a6f0;--peach:#ffc7a8;--mint:#bfebd7;--paper:#faf7ff;--line:#e3dbf5}
 *{box-sizing:border-box;margin:0}
@@ -74,7 +76,12 @@ input,textarea{width:100%;border:1.5px solid var(--line);background:#fff;border-
 .ai h3{margin-bottom:10px}
 .ai textarea{background:var(--plum);border-color:var(--plum);color:#fff;min-height:70px}
 .ai button{margin-top:10px;background:var(--mint);color:var(--ink);border:0;border-radius:11px;padding:10px 18px;font-weight:700;cursor:pointer}
-#aiOut{white-space:pre-wrap;margin-top:12px;line-height:1.5}
+#aiOut{margin-top:12px;line-height:1.5;overflow-x:auto}
+#aiOut p{margin:8px 0}
+#aiOut table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,255,.04);border-radius:10px;overflow:hidden}
+#aiOut th{color:var(--mint);text-align:left;font-family:'Fraunces',Georgia,serif}
+#aiOut th,#aiOut td{padding:10px 14px;border:1px solid var(--plum);vertical-align:top}
+#aiOut td:first-child{white-space:nowrap;color:var(--peach)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .3s}
 .toast.on{opacity:1}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-delay:0s!important;transition:none!important}}
@@ -243,8 +250,12 @@ $('#aiGo').onclick=async()=>{
   const tasks=S.tasks.map(t=>({title:t.title,day:t.day,time:t.time,done:t.done}));
   try{
     const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt:'My tasks: '+JSON.stringify(tasks)+'. '+q})});
-    out.textContent=await r.text();
+      body:JSON.stringify({prompt:'My tasks: '+JSON.stringify(tasks)+'. My request: '+q+
+        '. Reply with one short intro sentence, then a Markdown table with exactly two columns, "Timings" and "What to Do", '+
+        'giving realistic time ranges (for example 8:00 AM - 9:30 AM) in order. Add nothing after the table.'})});
+    const text=await r.text();
+    out.innerHTML=(window.marked&&window.DOMPurify)?DOMPurify.sanitize(marked.parse(text)):'';
+    if(!out.innerHTML)out.textContent=text;
   }catch{out.textContent='The AI helper could not be reached. Your planner still works.'}
 };
 </script>
